@@ -19,7 +19,9 @@ jobs:
           override: true
 
       - name: Install grcov
-        run: cargo install grcov
+        run: |
+          cargo install grcov
+          rustup component add llvm-tools-preview
 
       # Test prerequisites
       - name: Start databases in test containers
@@ -43,17 +45,15 @@ jobs:
       - name: Copy test expectations
         run: cp odbcsv/tests/list-drivers-dev.txt odbcsv/tests/list-drivers.txt
 
-      - name: Run grcov
+      - name: Generate source based coverage
         env:
-          RUSTFLAGS: "-Zprofile -Ccodegen-units=1 -Copt-level=0 -Clink-dead-code -Coverflow-checks=off -Zpanic_abort_tests -Cpanic=abort"
-          RUSTDOCFLAGS: "-Cpanic=abort"
-          CARGO_INCREMENTAL: 0
+          RUSTFLAGS: "-Zinstrument-coverage"
         run: |
+
           cargo build --verbose
           cargo test --verbose
 
-          zip -0 cov.zip $(find . -name "odbc_api*.gc??" -or -name "odbcsv*.gc??")
-          grcov cov.zip -s . -t lcov --llvm --ignore-not-existing --ignore "/*" -o lcov.info
+          grcov . --binary-path ./target/debug -t lcov --branch --ignore-not-existing --ignore "/*" -o lcov.info
 
       - name: Push grcov results to Coveralls via GitHub Action
         uses: coverallsapp/github-action@v1.0.1
